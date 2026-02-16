@@ -9,6 +9,7 @@ interface MediaFolderRepositoryInterface
     public function find(int $spaceId, int $id): ?MediaFolder;
 
     public function listByParent(int $spaceId, ?int $parentId): array;
+    public function listAll(int $spaceId): array;
 
     public function create(array $data): MediaFolder;
 

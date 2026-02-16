@@ -38,6 +38,18 @@ final class AssetsTest extends TestCase
         $folder->assertStatus(201)->assertJsonPath('success', true);
         $folderId = (int)$folder->json('data.id');
 
+        $childFolder = $this->postJson('/api/v1/admin/assets/folders', [
+            'name' => 'campaigns',
+            'parent_id' => $folderId,
+        ], $headers);
+        $childFolder->assertStatus(201)->assertJsonPath('success', true);
+        $childFolderId = (int)$childFolder->json('data.id');
+
+        $folders = $this->getJson('/api/v1/admin/assets/folders', $headers);
+        $folders->assertOk()->assertJsonPath('success', true);
+        $folders->assertJsonFragment(['id' => $folderId, 'name' => 'marketing', 'parent_id' => null]);
+        $folders->assertJsonFragment(['id' => $childFolderId, 'name' => 'campaigns', 'parent_id' => $folderId]);
+
         $file = UploadedFile::fake()->image('hello.jpg', 800, 600);
 
         $upload = $this->post('/api/v1/admin/assets', [

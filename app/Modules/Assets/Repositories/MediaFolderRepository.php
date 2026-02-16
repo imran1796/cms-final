@@ -30,6 +30,15 @@ final class MediaFolderRepository implements MediaFolderRepositoryInterface
         return $query->get()->all();
     }
 
+    public function listAll(int $spaceId): array
+    {
+        return MediaFolder::query()
+            ->where('space_id', $spaceId)
+            ->orderBy('name')
+            ->get()
+            ->all();
+    }
+
     public function create(array $data): MediaFolder
     {
         return MediaFolder::create($data);

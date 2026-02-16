@@ -11,6 +11,7 @@ interface AssetServiceInterface
     public function update(int $id, array $input): array;
     public function delete(int $id): void;
 
+    public function listFolders(): array;
     public function createFolder(array $input): array;
     public function move(array $input): array;
 

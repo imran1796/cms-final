@@ -193,6 +193,15 @@ final class AssetService implements AssetServiceInterface
         );
     }
 
+    public function listFolders(): array
+    {
+        $spaceId = $this->requireSpaceId();
+        $this->authz->requirePermission('manage_assets');
+
+        $folders = $this->folders->listAll($spaceId);
+        return array_map(fn($folder) => $folder->toArray(), $folders);
+    }
+
     public function createFolder(array $input): array
     {
         $spaceId = $this->requireSpaceId();

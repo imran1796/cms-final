@@ -134,6 +134,7 @@ Route::prefix('v1/spaces')
         Route::post('/assets/upload/chunk/complete', [AssetAdminController::class, 'chunkComplete']);
         Route::put('/assets/{id}', [AssetAdminController::class, 'update']);
         Route::delete('/assets/{id}', [AssetAdminController::class, 'destroy']);
+        Route::get('/assets/folders', [AssetAdminController::class, 'listFolders']);
         Route::post('/assets/folders', [AssetAdminController::class, 'createFolder']);
         Route::post('/assets/move', [AssetAdminController::class, 'move']);
 
@@ -189,6 +190,7 @@ Route::prefix('v1/spaces')
             Route::post('/assets/upload/chunk/complete', [AssetAdminController::class, 'chunkComplete']);
             Route::put('/assets/{id}', [AssetAdminController::class, 'update']);
             Route::delete('/assets/{id}', [AssetAdminController::class, 'destroy']);
+            Route::get('/assets/folders', [AssetAdminController::class, 'listFolders']);
             Route::post('/assets/folders', [AssetAdminController::class, 'createFolder']);
             Route::post('/assets/move', [AssetAdminController::class, 'move']);
 

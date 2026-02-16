@@ -101,6 +101,17 @@ final class AssetAdminController extends Controller
         }
     }
 
+    public function listFolders()
+    {
+        try {
+            $folders = $this->service->listFolders();
+            return ApiResponse::success($folders, 'Folders list');
+        } catch (\Throwable $e) {
+            Log::error('Folder list failed', ['message' => $e->getMessage()]);
+            throw $e;
+        }
+    }
+
     public function move(Request $request)
     {
         try {
