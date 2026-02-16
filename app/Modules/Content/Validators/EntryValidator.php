@@ -23,10 +23,39 @@ final class EntryValidator
         $validator = Validator::make($base, $rules);
         $validator->after(function (\Illuminate\Validation\Validator $v) use ($base, $schemaFields, $collection): void {
             self::validateLayoutFields($v, $base, $schemaFields, $collection);
+            self::validateLocalizedFieldKeys($v, $base, $schemaFields);
         });
         $validator->validate();
 
         return $base;
+    }
+
+    private static function validateLocalizedFieldKeys(\Illuminate\Validation\Validator $validator, array $base, array $schemaFields): void
+    {
+        $data = $base['data'] ?? [];
+        $supportedLocales = config('content.supported_locales', ['en']);
+        if (!is_array($supportedLocales)) {
+            $supportedLocales = ['en'];
+        }
+        foreach ($schemaFields as $field) {
+            if (!($field['localized'] ?? false)) {
+                continue;
+            }
+            $handle = $field['handle'] ?? null;
+            if (!$handle || !is_string($handle)) {
+                continue;
+            }
+            $value = $data[$handle] ?? null;
+            if (!is_array($value)) {
+                continue;
+            }
+            foreach (array_keys($value) as $localeKey) {
+                if (!in_array($localeKey, $supportedLocales, true)) {
+                    $validator->errors()->add("data.{$handle}", "Locale \"{$localeKey}\" is not in supported locales: " . implode(', ', $supportedLocales));
+                    break;
+                }
+            }
+        }
     }
 
     private static function validateLayoutFields(\Illuminate\Validation\Validator $validator, array $base, array $schemaFields, Collection $collection): void
@@ -75,6 +104,11 @@ final class EntryValidator
     private static function buildRulesForFields(array $schemaFields, string $prefix, ?Collection $collection = null): array
     {
         $rules = [];
+        $supportedLocales = config('content.supported_locales', ['en']);
+        if (!is_array($supportedLocales)) {
+            $supportedLocales = ['en'];
+        }
+
         foreach ($schemaFields as $field) {
             $handle = $field['handle'] ?? null;
             if (!$handle || !is_string($handle)) {
@@ -83,7 +117,25 @@ final class EntryValidator
 
             $required = (bool) ($field['required'] ?? false);
             $type = $field['type'] ?? 'text';
+            $localized = (bool) ($field['localized'] ?? false);
             $key = $prefix . $handle;
+
+            if ($localized) {
+                $rules[$key] = array_merge(
+                    $required ? ['required'] : ['sometimes', 'nullable'],
+                    ['array']
+                );
+                foreach ($supportedLocales as $locale) {
+                    $localeKey = $key . '.' . $locale;
+                    $typeRules = self::rulesForType($type, $field);
+                    $rules[$localeKey] = array_merge(['sometimes', 'nullable'], $typeRules);
+                    if ($type === 'tags') {
+                        $values = self::getOptionValues($field);
+                        $rules[$localeKey . '.*'] = $values ? [Rule::in($values)] : ['string'];
+                    }
+                }
+                continue;
+            }
 
             if ($type === 'repeater') {
                 $rules[$key] = array_merge(

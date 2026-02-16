@@ -349,7 +349,21 @@ public function update(string $collectionHandle, int $id, array $input): Entry
         foreach ($fields as $field) {
             $handle = $field['handle'] ?? null;
             $type = $field['type'] ?? 'text';
+            $localized = (bool) ($field['localized'] ?? false);
             if (!$handle) {
+                continue;
+            }
+
+            if ($localized) {
+                $value = $data[$handle] ?? null;
+                if (!is_array($value)) {
+                    $value = $value !== null ? [config('content.supported_locales', ['en'])[0] ?? 'en' => $value] : [];
+                }
+                if ($entry && isset($existingData[$handle]) && is_array($existingData[$handle])) {
+                    $data[$handle] = array_merge($existingData[$handle], $value);
+                } else {
+                    $data[$handle] = $value;
+                }
                 continue;
             }
 

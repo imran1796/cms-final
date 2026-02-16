@@ -166,11 +166,18 @@ final class ContentTypeValidator
             throw new ValidationApiException(['type' => ['Field type must be one of: ' . implode(', ', $validTypes)]]);
         }
 
+        $localizedAllowedTypes = ['text', 'textarea', 'richtext', 'slug', 'number', 'boolean', 'date', 'datetime', 'time', 'json', 'select', 'radio', 'enum', 'color'];
+        $localized = (bool) ($fieldInput['localized'] ?? false);
+        if ($localized && !in_array($type, $localizedAllowedTypes, true)) {
+            throw new ValidationApiException('Validation failed', ['localized' => ['localized is only allowed for: ' . implode(', ', $localizedAllowedTypes)]]);
+        }
+
         $out = [
             'handle' => $handle,
             'label' => $label,
             'type' => $type,
             'required' => $required,
+            'localized' => $localized,
         ];
 
         if ($type === 'slug') {
