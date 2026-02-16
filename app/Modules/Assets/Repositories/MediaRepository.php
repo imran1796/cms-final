@@ -31,6 +31,28 @@ final class MediaRepository implements MediaRepositoryInterface
         return $query->get()->all();
     }
 
+    public function listByFolderPaginated(int $spaceId, ?int $folderId, int $limit, int $skip): array
+    {
+        $query = Media::query()
+            ->where('space_id', $spaceId);
+
+        if ($folderId === null) {
+            $query->whereNull('folder_id');
+        } else {
+            $query->where('folder_id', $folderId);
+        }
+
+        $total = (clone $query)->count();
+        $items = (clone $query)
+            ->orderBy('filename')
+            ->skip($skip)
+            ->take($limit)
+            ->get()
+            ->all();
+
+        return ['items' => $items, 'total' => $total];
+    }
+
     public function find(int $spaceId, int $id): ?Media
     {
         return Media::query()

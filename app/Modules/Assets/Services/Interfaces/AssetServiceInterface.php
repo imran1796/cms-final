@@ -6,7 +6,11 @@ use Illuminate\Http\Request;
 
 interface AssetServiceInterface
 {
-    public function list(): array;
+    /**
+     * Paginated list for assets index. Params: folder_id (int|null), limit (int), skip (int).
+     * Returns ['items' => array (full asset documents), 'total' => int].
+     */
+    public function list(array $params = []): array;
     public function upload(Request $request): array;
     public function update(int $id, array $input): array;
     public function delete(int $id): void;

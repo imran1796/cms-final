@@ -37,13 +37,33 @@ final class AssetService implements AssetServiceInterface
         private readonly SpaceRepositoryInterface $spaces,
     ) {}
 
-    public function list(): array
+    public function list(array $params = []): array
     {
         $spaceId = $this->requireSpaceId();
         $this->authz->requirePermission('manage_assets');
 
-        $rows = $this->media->list($spaceId);
-        return array_map(fn($m) => $m->toArray(), $rows);
+        $folderId = array_key_exists('folder_id', $params) ? $params['folder_id'] : null;
+        if ($folderId !== null && !is_int($folderId)) {
+            $folderId = is_numeric($folderId) ? (int) $folderId : null;
+        }
+
+        $allowedLimits = [15, 30, 50, 100];
+        $limit = $params['limit'] ?? 15;
+        $limit = is_numeric($limit) ? (int) $limit : 15;
+        if (!in_array($limit, $allowedLimits, true)) {
+            $limit = 15;
+        }
+
+        $skip = $params['skip'] ?? 0;
+        $skip = is_numeric($skip) ? (int) $skip : 0;
+        if ($skip < 0) {
+            $skip = 0;
+        }
+
+        $result = $this->media->listByFolderPaginated($spaceId, $folderId, $limit, $skip);
+        $items = array_map(fn($m) => $m->toArray(), $result['items']);
+
+        return ['items' => $items, 'total' => $result['total']];
     }
 
     public function upload(Request $request): array

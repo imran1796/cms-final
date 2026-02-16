@@ -16,10 +16,41 @@ final class AssetAdminController extends Controller
         private readonly ChunkedUploadService $chunked,
     ) {}
 
-    public function index()
+    public function index(Request $request)
     {
         try {
-            return ApiResponse::success($this->service->list(), 'Assets list');
+            $folderId = $request->query('folder_id');
+            if ($folderId !== null && $folderId !== '') {
+                $folderId = is_numeric($folderId) ? (int) $folderId : null;
+            } else {
+                $folderId = null;
+            }
+
+            $allowedLimits = [15, 30, 50, 100];
+            $limit = $request->query('limit', 15);
+            $limit = is_numeric($limit) ? (int) $limit : 15;
+            if (!in_array($limit, $allowedLimits, true)) {
+                $limit = 15;
+            }
+
+            $skip = $request->query('skip', 0);
+            $skip = is_numeric($skip) ? (int) $skip : 0;
+            if ($skip < 0) {
+                $skip = 0;
+            }
+
+            $result = $this->service->list([
+                'folder_id' => $folderId,
+                'limit' => $limit,
+                'skip' => $skip,
+            ]);
+
+            return ApiResponse::success(
+                $result['items'],
+                'Assets list',
+                200,
+                ['total' => $result['total'], 'limit' => $limit, 'skip' => $skip]
+            );
         } catch (\Throwable $e) {
             Log::error('Assets index failed', ['message' => $e->getMessage()]);
             throw $e;
