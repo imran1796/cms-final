@@ -10,6 +10,7 @@ use App\Modules\System\ApiKeys\Controllers\ApiKeyAdminController;
 use App\Modules\System\Users\Controllers\UserAdminController;
 use App\Modules\System\Settings\Controllers\SettingsController;
 use App\Modules\Content\Controllers\CollectionController;
+use App\Modules\Content\Controllers\ContentLocaleConfigController;
 use App\Modules\Content\Controllers\EntryAdminController;
 use App\Modules\Content\Controllers\EntryLockController;
 use App\Modules\Content\Controllers\PublishingController;
@@ -137,6 +138,7 @@ Route::prefix('v1/spaces')
         Route::get('/assets/folders', [AssetAdminController::class, 'listFolders']);
         Route::post('/assets/folders', [AssetAdminController::class, 'createFolder']);
         Route::post('/assets/move', [AssetAdminController::class, 'move']);
+        Route::get('/content/locales', [ContentLocaleConfigController::class, 'show']);
 
         Route::get('/{collectionHandle}', [EntryAdminController::class, 'index']);
         Route::post('/{collectionHandle}', [EntryAdminController::class, 'store']);
@@ -193,6 +195,7 @@ Route::prefix('v1/spaces')
             Route::get('/assets/folders', [AssetAdminController::class, 'listFolders']);
             Route::post('/assets/folders', [AssetAdminController::class, 'createFolder']);
             Route::post('/assets/move', [AssetAdminController::class, 'move']);
+            Route::get('/content/locales', [ContentLocaleConfigController::class, 'show']);
 
             Route::get('/{collectionHandle}/tree', [TreeController::class, 'tree']);
             Route::post('/{collectionHandle}/{id}/move', [TreeController::class, 'move'])->whereNumber('id');

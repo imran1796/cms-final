@@ -13,7 +13,7 @@ final class PublishScheduledCommandTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_scheduler_publishes_draft_with_published_at_lte_now(): void
+    public function test_scheduler_publishes_scheduled_with_published_at_lte_now(): void
     {
         $space = Space::query()->create([
             'handle' => 'main',
@@ -32,11 +32,13 @@ final class PublishScheduledCommandTest extends TestCase
             'settings' => [],
         ]);
 
+        $scheduledAt = Carbon::now()->subMinute()->startOfSecond();
+
         $entry = Entry::query()->create([
             'space_id' => $space->id,
             'collection_id' => $collection->id,
-            'status' => 'draft',
-            'published_at' => Carbon::now()->subMinute(),
+            'status' => 'scheduled',
+            'published_at' => $scheduledAt,
             'data' => ['title' => 'Scheduled post'],
         ]);
 
@@ -45,5 +47,6 @@ final class PublishScheduledCommandTest extends TestCase
         $entry->refresh();
         $this->assertSame('published', $entry->status);
         $this->assertNotNull($entry->published_at);
+        $this->assertSame($scheduledAt->timestamp, $entry->published_at?->timestamp);
     }
 }

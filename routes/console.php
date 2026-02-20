@@ -11,3 +11,4 @@ Artisan::command('inspire', function () {
 
 
 Schedule::command('cms:publish-scheduled')->everyMinute();
+Schedule::command('cms:unpublish-scheduled')->everyMinute();

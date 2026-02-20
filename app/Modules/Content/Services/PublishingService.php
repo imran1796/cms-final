@@ -72,6 +72,7 @@ final class PublishingService implements PublishingServiceInterface
         try {
             $entry->status = 'draft';
             $entry->published_at = null;
+            $entry->unpublish_at = null;
             $entry->save();
 
             $this->audit->write(
@@ -104,9 +105,20 @@ final class PublishingService implements PublishingServiceInterface
         $now = Carbon::now();
 
         $eligible = Entry::query()
-            ->where('status', 'draft')
-            ->whereNotNull('published_at')
-            ->where('published_at', '<=', $now)
+            ->where(function ($q) use ($now) {
+                $q->where(function ($scheduled) use ($now) {
+                    $scheduled->where('status', 'scheduled')
+                        ->whereNotNull('published_at')
+                        ->where('published_at', '<=', $now);
+                });
+                // Legacy fallback intentionally disabled after migration to real scheduled status.
+                // Re-enable this block only if you still need to auto-publish draft+due entries:
+                // $q->orWhere(function ($legacy) use ($now) {
+                //     $legacy->where('status', 'draft')
+                //         ->whereNotNull('published_at')
+                //         ->where('published_at', '<=', $now);
+                // });
+            })
             ->orderBy('published_at')
             ->limit(500)
             ->get();
@@ -137,6 +149,48 @@ final class PublishingService implements PublishingServiceInterface
             } catch (\Throwable $e) {
                 DB::rollBack();
                 Log::error('Scheduled publish failed', [
+                    'entry_id' => $entry->id,
+                    'message' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $count;
+    }
+
+    public function unpublishScheduled(): int
+    {
+        $now = Carbon::now();
+
+        $eligible = Entry::query()
+            ->where('status', 'published')
+            ->whereNotNull('unpublish_at')
+            ->where('unpublish_at', '<=', $now)
+            ->orderBy('unpublish_at')
+            ->limit(500)
+            ->get();
+
+        $count = 0;
+
+        foreach ($eligible as $entry) {
+            DB::beginTransaction();
+            try {
+                $entry->status = 'draft';
+                $entry->published_at = null;
+                $entry->unpublish_at = null;
+                $entry->save();
+
+                DB::commit();
+
+                Log::info('Scheduled unpublish executed', [
+                    'space_id' => $entry->space_id,
+                    'entry_id' => $entry->id,
+                ]);
+
+                $count++;
+            } catch (\Throwable $e) {
+                DB::rollBack();
+                Log::error('Scheduled unpublish failed', [
                     'entry_id' => $entry->id,
                     'message' => $e->getMessage(),
                 ]);

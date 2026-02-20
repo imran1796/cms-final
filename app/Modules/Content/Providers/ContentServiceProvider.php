@@ -33,6 +33,10 @@ final class ContentServiceProvider extends ServiceProvider
             \App\Modules\Content\Services\EntryService::class
         );
 
+        $this->app->singleton(
+            \App\Modules\Content\Services\ContentLocaleConfigService::class
+        );
+
         $this->app->bind(
             \App\Modules\Content\Services\PublishingServiceInterface::class,
             \App\Modules\Content\Services\PublishingService::class

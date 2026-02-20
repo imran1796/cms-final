@@ -17,6 +17,7 @@ final class Entry extends Model
         'collection_id',
         'status',
         'published_at',
+        'unpublish_at',
         'data',
         'title',
         'slug',
@@ -24,6 +25,7 @@ final class Entry extends Model
 
     protected $casts = [
         'published_at' => 'datetime',
+        'unpublish_at' => 'datetime',
         'data' => 'array',
     ];
 

@@ -32,8 +32,15 @@ final class EntryRepository implements EntryRepositoryInterface
         } elseif ($status === 'published') {
             $query->where('status', 'published');
         } elseif ($status === 'scheduled') {
-            $query->where('status', 'draft')
-                ->where('published_at', '>', Carbon::now());
+            $query->where(function ($q) {
+                $q->where('status', 'scheduled');
+                // Legacy fallback intentionally disabled after migration to real scheduled status.
+                // Re-enable this block only if you still need to treat draft+future published_at as scheduled:
+                // $q->orWhere(function ($legacy) {
+                //     $legacy->where('status', 'draft')
+                //         ->where('published_at', '>', Carbon::now());
+                // });
+            });
         } elseif ($status === 'archived') {
             $query->where('status', 'archived');
         }

@@ -113,7 +113,7 @@ final class EntriesAdminListParamsTest extends TestCase
         Entry::query()->create([
             'space_id' => $this->space->id,
             'collection_id' => $this->collectionId,
-            'status' => 'draft',
+            'status' => 'scheduled',
             'published_at' => now()->addDay(),
             'data' => ['title' => 'Scheduled Post', 'slug' => 'scheduled-post'],
             'title' => 'Scheduled Post',
@@ -135,7 +135,7 @@ final class EntriesAdminListParamsTest extends TestCase
         $res->assertOk()->assertJsonPath('success', true);
         $data = $res->json('data.data');
         $this->assertCount(1, $data);
-        $this->assertSame('draft', $data[0]['status']);
+        $this->assertSame('scheduled', $data[0]['status']);
         $this->assertNotNull($data[0]['published_at']);
     }
 

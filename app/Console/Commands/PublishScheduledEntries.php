@@ -8,7 +8,7 @@ use Illuminate\Console\Command;
 final class PublishScheduledEntries extends Command
 {
     protected $signature = 'cms:publish-scheduled';
-    protected $description = 'Publish scheduled entries (draft with published_at <= now)';
+    protected $description = 'Publish scheduled entries (scheduled with published_at <= now)';
 
     public function handle(PublishingServiceInterface $publishing): int
     {

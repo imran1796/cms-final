@@ -3,6 +3,7 @@
 namespace App\Modules\Content\Validators;
 
 use App\Models\Collection;
+use App\Modules\Content\Services\ContentLocaleConfigService;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -10,11 +11,28 @@ final class EntryValidator
 {
     public static function validateUpsert(Collection $collection, array $input): array
     {
-        $base = Validator::make($input, [
-            'status' => ['sometimes', 'string', Rule::in(['draft', 'published', 'archived'])],
-            'published_at' => ['sometimes', 'date'],
+        $baseValidator = Validator::make($input, [
+            'status' => ['sometimes', 'string', Rule::in(['draft', 'scheduled', 'published', 'archived'])],
+            'published_at' => ['sometimes', 'nullable', 'date'],
+            'unpublish_at' => ['sometimes', 'nullable', 'date'],
             'data' => ['sometimes', 'array'],
-        ])->validate();
+        ]);
+        $baseValidator->after(function (\Illuminate\Validation\Validator $v) use ($input): void {
+            if (!array_key_exists('published_at', $input) || !array_key_exists('unpublish_at', $input)) {
+                return;
+            }
+            $publishedAt = $input['published_at'];
+            $unpublishAt = $input['unpublish_at'];
+            if ($publishedAt === null || $unpublishAt === null) {
+                return;
+            }
+            $publishedTs = strtotime((string) $publishedAt);
+            $unpublishTs = strtotime((string) $unpublishAt);
+            if ($publishedTs !== false && $unpublishTs !== false && $unpublishTs <= $publishedTs) {
+                $v->errors()->add('unpublish_at', 'unpublish_at must be after published_at');
+            }
+        });
+        $base = $baseValidator->validate();
 
         $schemaFields = $collection->fields ?? [];
         $data = $base['data'] ?? [];
@@ -33,10 +51,7 @@ final class EntryValidator
     private static function validateLocalizedFieldKeys(\Illuminate\Validation\Validator $validator, array $base, array $schemaFields): void
     {
         $data = $base['data'] ?? [];
-        $supportedLocales = config('content.supported_locales', ['en']);
-        if (!is_array($supportedLocales)) {
-            $supportedLocales = ['en'];
-        }
+        $supportedLocales = self::resolvedSupportedLocales();
         foreach ($schemaFields as $field) {
             if (!($field['localized'] ?? false)) {
                 continue;
@@ -104,10 +119,7 @@ final class EntryValidator
     private static function buildRulesForFields(array $schemaFields, string $prefix, ?Collection $collection = null): array
     {
         $rules = [];
-        $supportedLocales = config('content.supported_locales', ['en']);
-        if (!is_array($supportedLocales)) {
-            $supportedLocales = ['en'];
-        }
+        $supportedLocales = self::resolvedSupportedLocales();
 
         foreach ($schemaFields as $field) {
             $handle = $field['handle'] ?? null;
@@ -245,5 +257,34 @@ final class EntryValidator
             return array_values(array_map('strval', $opts));
         }
         return [];
+    }
+
+    private static function resolvedSupportedLocales(): array
+    {
+        $cfg = self::resolvedLocaleConfig();
+        $locales = $cfg['supported_locales'] ?? ['en'];
+        return is_array($locales) && $locales !== [] ? array_values($locales) : ['en'];
+    }
+
+    private static function resolvedLocaleConfig(): array
+    {
+        try {
+            /** @var ContentLocaleConfigService $service */
+            $service = app(ContentLocaleConfigService::class);
+            return $service->get();
+        } catch (\Throwable) {
+            $fallbackLocales = config('content.supported_locales', ['en']);
+            if (!is_array($fallbackLocales) || $fallbackLocales === []) {
+                $fallbackLocales = ['en'];
+            }
+            $fallbackDefault = (string) (config('content.default_locale', $fallbackLocales[0] ?? 'en'));
+            if ($fallbackDefault === '') {
+                $fallbackDefault = $fallbackLocales[0] ?? 'en';
+            }
+            return [
+                'supported_locales' => $fallbackLocales,
+                'default_locale' => $fallbackDefault,
+            ];
+        }
     }
 }

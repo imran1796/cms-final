@@ -25,7 +25,8 @@ final class EntryService implements EntryServiceInterface
         private readonly EntryRepositoryInterface $entries,
         private readonly AuthorizationService $authz,
         private readonly AuditLogServiceInterface $audit,
-        private readonly \App\Modules\Content\Revisions\Services\Interfaces\RevisionServiceInterface $revisions
+        private readonly \App\Modules\Content\Revisions\Services\Interfaces\RevisionServiceInterface $revisions,
+        private readonly ContentLocaleConfigService $localeConfig
 
     ) {
     }
@@ -85,9 +86,12 @@ final class EntryService implements EntryServiceInterface
 
         $status = $validated['status'] ?? 'draft';
         $publishedAt = $validated['published_at'] ?? null;
+        $unpublishAt = $validated['unpublish_at'] ?? null;
 
         if ($status === 'published' && !$publishedAt) {
             $publishedAt = Carbon::now();
+        } elseif ($status !== 'archived') {
+            $status = $this->isFutureDate($publishedAt) ? 'scheduled' : 'draft';
         }
 
         $data = $this->prepareDataForSave($collection, $validated['data'] ?? []);
@@ -99,6 +103,7 @@ final class EntryService implements EntryServiceInterface
                 'collection_id' => $collection->id,
                 'status' => $status,
                 'published_at' => $publishedAt,
+                'unpublish_at' => $unpublishAt,
                 'data' => $data,
             ]);
 
@@ -171,6 +176,7 @@ public function update(string $collectionHandle, int $id, array $input): Entry
         'data' => (array) $entry->data,
         'status' => $entry->status,
         'published_at' => $entry->published_at,
+        'unpublish_at' => $entry->unpublish_at,
     ];
 
     $normalized = $this->normalizeInputToData($input);
@@ -178,9 +184,14 @@ public function update(string $collectionHandle, int $id, array $input): Entry
 
     $status = $validated['status'] ?? $entry->status;
     $publishedAt = array_key_exists('published_at', $validated) ? $validated['published_at'] : $entry->published_at;
+    $unpublishAt = array_key_exists('unpublish_at', $validated) ? $validated['unpublish_at'] : $entry->unpublish_at;
+    $statusProvided = array_key_exists('status', $validated);
+    $publishedAtProvided = array_key_exists('published_at', $validated);
 
     if ($status === 'published' && !$publishedAt) {
         $publishedAt = Carbon::now();
+    } elseif ($status !== 'archived' && ($statusProvided || $publishedAtProvided)) {
+        $status = $this->isFutureDate($publishedAt) ? 'scheduled' : 'draft';
     }
 
     $data = $this->prepareDataForSave($collection, $validated['data'] ?? $entry->data, $entry);
@@ -190,6 +201,7 @@ public function update(string $collectionHandle, int $id, array $input): Entry
         $updated = $this->entries->update($entry, [
             'status' => $status,
             'published_at' => $publishedAt,
+            'unpublish_at' => $unpublishAt,
             'data' => $data,
         ]);
 
@@ -197,6 +209,7 @@ public function update(string $collectionHandle, int $id, array $input): Entry
             'data' => (array) $updated->data,
             'status' => $updated->status,
             'published_at' => $updated->published_at,
+            'unpublish_at' => $updated->unpublish_at,
         ];
 
         $this->revisions->createOnUpdate(
@@ -298,13 +311,29 @@ public function update(string $collectionHandle, int $id, array $input): Entry
         }
 
         $data = $input;
-        unset($data['status'], $data['published_at']);
+        unset($data['status'], $data['published_at'], $data['unpublish_at']);
 
         return [
             'status' => $input['status'] ?? null,
             'published_at' => $input['published_at'] ?? null,
+            'unpublish_at' => $input['unpublish_at'] ?? null,
             'data' => $data,
         ];
+    }
+
+    private function isFutureDate(mixed $value): bool
+    {
+        if ($value === null || $value === '') {
+            return false;
+        }
+        if ($value instanceof Carbon) {
+            return $value->isFuture();
+        }
+        try {
+            return Carbon::parse((string) $value)->isFuture();
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     private function projectFields(array $entry, string $fieldsCsv): array
@@ -346,6 +375,7 @@ public function update(string $collectionHandle, int $id, array $input): Entry
     {
         $fields = $collection->fields ?? [];
         $existingData = $entry ? (array) $entry->data : [];
+        $defaultLocale = $this->resolvedDefaultLocale();
         foreach ($fields as $field) {
             $handle = $field['handle'] ?? null;
             $type = $field['type'] ?? 'text';
@@ -357,7 +387,7 @@ public function update(string $collectionHandle, int $id, array $input): Entry
             if ($localized) {
                 $value = $data[$handle] ?? null;
                 if (!is_array($value)) {
-                    $value = $value !== null ? [config('content.supported_locales', ['en'])[0] ?? 'en' => $value] : [];
+                    $value = $value !== null ? [$defaultLocale => $value] : [];
                 }
                 if ($entry && isset($existingData[$handle]) && is_array($existingData[$handle])) {
                     $data[$handle] = array_merge($existingData[$handle], $value);
@@ -385,6 +415,34 @@ public function update(string $collectionHandle, int $id, array $input): Entry
             }
         }
         return $data;
+    }
+
+    private function resolvedDefaultLocale(): string
+    {
+        try {
+            $cfg = $this->localeConfig->get();
+            $default = $cfg['default_locale'] ?? null;
+            if (is_string($default) && trim($default) !== '') {
+                return trim($default);
+            }
+        } catch (\Throwable) {
+            // Fall back to static config.
+        }
+
+        $fallback = config('content.default_locale');
+        if (is_string($fallback) && trim($fallback) !== '') {
+            return trim($fallback);
+        }
+
+        $locales = config('content.supported_locales', ['en']);
+        if (is_array($locales) && !empty($locales)) {
+            $first = (string) $locales[0];
+            if ($first !== '') {
+                return $first;
+            }
+        }
+
+        return 'en';
     }
 
     public function slugFromString(string $value): string

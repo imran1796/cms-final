@@ -12,4 +12,13 @@ return [
     */
     'supported_locales' => ['en', 'de'],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Default locale (field-level localization fallback)
+    |--------------------------------------------------------------------------
+    | Used when DB content locale settings are unavailable and when the backend
+    | needs a deterministic default locale key.
+    */
+    'default_locale' => 'en',
+
 ];

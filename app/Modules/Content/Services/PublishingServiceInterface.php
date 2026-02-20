@@ -10,4 +10,5 @@ interface PublishingServiceInterface
     public function unpublish(string $collectionHandle, int $id): Entry;
 
     public function publishScheduled(): int;
+    public function unpublishScheduled(): int;
 }
