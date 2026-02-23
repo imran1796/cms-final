@@ -22,4 +22,12 @@ return [
 
     // Queue webhooks for retry on failure (requires job implementation)
     'retry_on_failure' => env('CMS_WEBHOOKS_RETRY_ON_FAILURE', false),
+
+    // Retry policy
+    'retry_queue' => env('CMS_WEBHOOKS_RETRY_QUEUE', 'default'),
+    'retry_tries' => (int) env('CMS_WEBHOOKS_RETRY_TRIES', 3),
+    'retry_backoff_seconds' => array_values(array_filter(array_map('trim', explode(',', (string) env('CMS_WEBHOOKS_RETRY_BACKOFF_SECONDS', '5,15,60'))))),
+
+    // Idempotency marker retention for successful webhook dispatches
+    'idempotency_ttl_seconds' => (int) env('CMS_WEBHOOKS_IDEMPOTENCY_TTL_SECONDS', 86400),
 ];

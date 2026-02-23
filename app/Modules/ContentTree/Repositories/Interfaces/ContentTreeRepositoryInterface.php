@@ -6,7 +6,7 @@ use Illuminate\Support\Collection;
 
 interface ContentTreeRepositoryInterface
 {
-    public function listNodes(int $spaceId, int $collectionId): Collection;
+    public function listNodes(int $spaceId, int $collectionId, ?int $limit = null, int $skip = 0): Collection;
 
     public function findNodeByEntry(int $spaceId, int $collectionId, int $entryId);
 

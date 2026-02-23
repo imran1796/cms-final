@@ -160,12 +160,57 @@ final class EntrySchedulingLifecycleTest extends TestCase
             'data' => ['title' => 'Should unpublish'],
         ]);
 
-        $this->artisan('cms:unpublish-scheduled')->assertExitCode(0);
+        $this->artisan('cms:unpublish-scheduled')
+            ->expectsOutput('Unpublished 1 entries.')
+            ->assertExitCode(0);
+
+        $this->artisan('cms:unpublish-scheduled')
+            ->expectsOutput('Unpublished 0 entries.')
+            ->assertExitCode(0);
 
         $entry->refresh();
         $this->assertSame('draft', $entry->status);
         $this->assertNull($entry->published_at);
         $this->assertNull($entry->unpublish_at);
+    }
+
+    public function test_publish_scheduled_command_processes_due_entries_once(): void
+    {
+        $space = Space::query()->create([
+            'handle' => 'main',
+            'name' => 'Main Space',
+            'settings' => [],
+            'storage_prefix' => 'spaces/main',
+        ]);
+
+        $collection = Collection::query()->create([
+            'space_id' => $space->id,
+            'handle' => 'posts',
+            'type' => 'collection',
+            'fields' => [
+                ['id' => 'f1', 'handle' => 'title', 'label' => 'Title', 'type' => 'text', 'required' => true],
+            ],
+            'settings' => [],
+        ]);
+
+        $entry = Entry::query()->create([
+            'space_id' => $space->id,
+            'collection_id' => $collection->id,
+            'status' => 'scheduled',
+            'published_at' => Carbon::now()->subMinute(),
+            'data' => ['title' => 'Should publish once'],
+        ]);
+
+        $this->artisan('cms:publish-scheduled')
+            ->expectsOutput('Published 1 scheduled entries.')
+            ->assertExitCode(0);
+
+        $this->artisan('cms:publish-scheduled')
+            ->expectsOutput('Published 0 scheduled entries.')
+            ->assertExitCode(0);
+
+        $entry->refresh();
+        $this->assertSame('published', $entry->status);
     }
 
     public function test_admin_list_status_scheduled_returns_scheduled_entries(): void

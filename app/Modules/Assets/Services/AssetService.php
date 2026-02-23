@@ -81,32 +81,31 @@ final class AssetService implements AssetServiceInterface
         $disk = config('cms_assets.disk', 'local');
         $baseDir = trim((string)config('cms_assets.base_dir', 'cms_media'), '/');
 
-        $ext = $file->getClientOriginalExtension() ?: 'bin';
+        $ext = strtolower((string) ($file->extension() ?: $file->getClientOriginalExtension() ?: 'bin'));
         $safeName = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME));
         $safeName = $safeName !== '' ? $safeName : 'file';
 
         $uuid = (string)Str::uuid();
         $relativePath = "{$baseDir}/{$storagePrefix}/original/{$uuid}.{$ext}";
 
-        return DB::transaction(function () use ($spaceId, $disk, $relativePath, $file, $folderId, $safeName) {
-
-            Storage::disk($disk)->put($relativePath, file_get_contents($file->getRealPath()));
+        return DB::transaction(function () use ($spaceId, $disk, $relativePath, $file, $folderId, $safeName, $ext) {
+            $this->writePathToDiskFromStream($disk, $relativePath, $file->getRealPath());
 
             $size = Storage::disk($disk)->size($relativePath) ?: 0;
-            $mime = $file->getClientMimeType();
+            $mime = $file->getMimeType() ?: $file->getClientMimeType();
 
             $kind = 'file';
             if ($mime && str_starts_with($mime, 'image/')) $kind = 'image';
             if ($mime && str_starts_with($mime, 'video/')) $kind = 'video';
 
-            $checksum = sha1(Storage::disk($disk)->get($relativePath));
+            $checksum = sha1_file($file->getRealPath()) ?: '';
 
             $media = $this->media->create([
                 'space_id' => $spaceId,
                 'folder_id' => $folderId,
                 'disk' => $disk,
                 'path' => $relativePath,
-                'filename' => $safeName . '.' . ($file->getClientOriginalExtension() ?: 'bin'),
+                'filename' => $safeName . '.' . $ext,
                 'mime' => $mime,
                 'size' => $size,
                 'checksum' => $checksum,
@@ -296,9 +295,9 @@ final class AssetService implements AssetServiceInterface
         if ($mime && str_starts_with($mime, 'video/')) $kind = 'video';
 
         return DB::transaction(function () use ($tempPath, $spaceId, $disk, $relativePath, $folderId, $safeName, $originalFilename, $ext, $mime, $kind) {
-            Storage::disk($disk)->put($relativePath, file_get_contents($tempPath));
+            $this->writePathToDiskFromStream($disk, $relativePath, $tempPath);
             $size = Storage::disk($disk)->size($relativePath) ?: 0;
-            $checksum = sha1(Storage::disk($disk)->get($relativePath));
+            $checksum = sha1_file($tempPath) ?: '';
 
             $media = $this->media->create([
                 'space_id' => $spaceId,
@@ -348,5 +347,22 @@ final class AssetService implements AssetServiceInterface
             ]);
         }
         return $spaceId;
+    }
+
+    private function writePathToDiskFromStream(string $disk, string $destinationPath, string $sourcePath): void
+    {
+        $source = fopen($sourcePath, 'rb');
+        if ($source === false) {
+            throw new \RuntimeException('Unable to open source file stream');
+        }
+
+        try {
+            $ok = Storage::disk($disk)->writeStream($destinationPath, $source);
+            if ($ok !== true) {
+                throw new \RuntimeException('Unable to write file stream');
+            }
+        } finally {
+            fclose($source);
+        }
     }
 }

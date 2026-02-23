@@ -184,7 +184,16 @@ final class AssetPublicService implements AssetPublicServiceInterface
         }
 
         return new StreamedResponse(function () use ($disk, $path) {
-            echo Storage::disk($disk)->get($path);
+            $stream = Storage::disk($disk)->readStream($path);
+            if ($stream === false) {
+                throw new NotFoundApiException('Resource not found');
+            }
+
+            try {
+                fpassthru($stream);
+            } finally {
+                fclose($stream);
+            }
         }, 200, [
             'Content-Type' => $mime,
             'Cache-Control' => 'public, max-age=31536000',

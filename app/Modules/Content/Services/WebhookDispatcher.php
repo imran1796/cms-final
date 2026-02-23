@@ -3,6 +3,7 @@
 namespace App\Modules\Content\Services;
 
 use App\Models\Entry;
+use App\Modules\Content\Jobs\DispatchWebhookJob;
 use App\Modules\Content\Contracts\WebhookDispatcherInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -86,9 +87,11 @@ final class WebhookDispatcher implements WebhookDispatcherInterface
     private function sendWebhook(string $url, array $payload, ?string $secret): void
     {
         $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+        $idempotencyKey = $this->buildIdempotencyKey($url, $payload);
         $headers = [
             'Content-Type' => 'application/json',
             'User-Agent' => 'Laravel-CMS/1.0',
+            'X-Webhook-Idempotency-Key' => $idempotencyKey,
         ];
 
         if ($secret) {
@@ -114,6 +117,17 @@ final class WebhookDispatcher implements WebhookDispatcherInterface
 
     private function queueWebhook(string $url, array $payload, ?string $secret): void
     {
-        Log::info('Webhook queued for retry', ['url' => $url]);
+        $idempotencyKey = $this->buildIdempotencyKey($url, $payload);
+        DispatchWebhookJob::dispatch($url, $payload, $secret, $idempotencyKey);
+        Log::info('Webhook queued for retry', [
+            'url' => $url,
+            'idempotency_key' => $idempotencyKey,
+        ]);
+    }
+
+    private function buildIdempotencyKey(string $url, array $payload): string
+    {
+        $raw = $url . '|' . json_encode($payload, JSON_UNESCAPED_SLASHES);
+        return hash('sha256', $raw ?: $url);
     }
 }

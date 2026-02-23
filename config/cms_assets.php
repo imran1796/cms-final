@@ -7,6 +7,18 @@ return [
     // Where media is stored inside disk
     'base_dir' => env('CMS_ASSETS_BASE_DIR', 'cms_media'),
 
+    // Upload policy. Keep strict mode off initially for compatibility rollout.
+    'strict_upload_validation' => (bool) env('CMS_ASSETS_STRICT_UPLOAD_VALIDATION', false),
+    'max_upload_size_mb' => (int) env('CMS_ASSETS_MAX_UPLOAD_MB', 100),
+    'allowed_mime_types' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'CMS_ASSETS_ALLOWED_MIME_TYPES',
+        'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,application/pdf,text/plain'
+    ))))),
+    'allowed_extensions' => array_values(array_filter(array_map('trim', explode(',', (string) env(
+        'CMS_ASSETS_ALLOWED_EXTENSIONS',
+        'jpg,jpeg,png,webp,gif,mp4,webm,pdf,txt'
+    ))))),
+
     // FFmpeg / FFProbe binaries (default: ffmpeg/ffprobe in PATH; set env to override)
     'ffmpeg' => [
         'ffmpeg.binaries' => [env('FFMPEG_BINARY', 'ffmpeg')],

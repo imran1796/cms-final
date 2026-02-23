@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Log;
 
 final class CacheInvalidator implements CacheInvalidatorInterface
 {
+    private const NS_SPACE = 'cache_ns:space:';
+    private const NS_COLLECTION = 'cache_ns:collection:';
+    private const NS_ENTRY = 'cache_ns:entry:';
+
     public function invalidateEntry(int $spaceId, string $collectionHandle, Entry $entry): void
     {
         try {
@@ -30,12 +34,32 @@ final class CacheInvalidator implements CacheInvalidatorInterface
                     'tags' => $tags,
                 ]);
             } else {
-                Cache::flush();
-                Log::info('Cache flushed (tags not supported)', [
+                $spaceNs = self::NS_SPACE . $spaceId;
+                $collectionNs = self::NS_COLLECTION . $spaceId . ':' . $collectionHandle;
+                $entryNs = self::NS_ENTRY . $spaceId . ':' . $collectionHandle . ':' . $entry->id;
+
+                Cache::increment($spaceNs);
+                Cache::increment($collectionNs);
+                Cache::increment($entryNs);
+
+                if ((int) Cache::get($spaceNs, 0) <= 0) {
+                    Cache::forever($spaceNs, 1);
+                }
+                if ((int) Cache::get($collectionNs, 0) <= 0) {
+                    Cache::forever($collectionNs, 1);
+                }
+                if ((int) Cache::get($entryNs, 0) <= 0) {
+                    Cache::forever($entryNs, 1);
+                }
+
+                Log::info('Cache invalidated via namespace versions', [
                     'space_id' => $spaceId,
                     'collection' => $collectionHandle,
                     'entry_id' => $entry->id,
                     'driver' => $driver,
+                    'space_ns' => Cache::get($spaceNs, 1),
+                    'collection_ns' => Cache::get($collectionNs, 1),
+                    'entry_ns' => Cache::get($entryNs, 1),
                 ]);
             }
         } catch (\Throwable $e) {

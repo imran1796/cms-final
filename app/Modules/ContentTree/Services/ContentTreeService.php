@@ -20,7 +20,7 @@ final class ContentTreeService implements ContentTreeServiceInterface
         private readonly AuditLogServiceInterface $audit,
     ) {}
 
-    public function getTree(int $spaceId, string $collectionHandle): array
+    public function getTree(int $spaceId, string $collectionHandle, array $params = []): array
     {
         $collection = $this->collections->findByHandle($spaceId, $collectionHandle);
         if (!$collection) {
@@ -30,7 +30,12 @@ final class ContentTreeService implements ContentTreeServiceInterface
             throw new DomainApiException('Collection is not a tree type');
         }
 
-        $nodes = $this->repo->listNodes($spaceId, (int)$collection->id);
+        $limit = isset($params['limit']) && is_numeric($params['limit']) ? (int) $params['limit'] : 1000;
+        $limit = max(1, min(5000, $limit));
+        $skip = isset($params['skip']) && is_numeric($params['skip']) ? (int) $params['skip'] : 0;
+        $skip = max(0, $skip);
+
+        $nodes = $this->repo->listNodes($spaceId, (int)$collection->id, $limit, $skip);
 
         $byId = [];
         $childrenMap = [];

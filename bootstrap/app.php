@@ -27,6 +27,12 @@ return Application::configure(basePath: dirname(__DIR__))
    
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            $requestId = (string) (
+                $request->attributes->get('request_id')
+                ?? $request->header('X-Request-Id')
+                ?? ''
+            );
+
             // If not an API request, let Laravel handle (web pages, etc.)
             if (!$request->is('api/*') && !$request->expectsJson()) {
                 return null;
@@ -35,7 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Our custom API exceptions
             if ($e instanceof \App\Support\Exceptions\ApiException) {
                 $meta = array_merge(
-                    ['request_id' => $request->header('X-Request-Id')],
+                    ['request_id' => $requestId !== '' ? $requestId : null],
                     $e->meta()
                 );
                 return \App\Support\ApiResponse::error(
@@ -53,27 +59,36 @@ return Application::configure(basePath: dirname(__DIR__))
                     message: 'Validation failed',
                     status: 422,
                     code: 'VALIDATION_ERROR',
-                    errors: $e->errors()
+                    errors: $e->errors(),
+                    meta: ['request_id' => $requestId !== '' ? $requestId : null]
                 );
             }
     
             // Auth/authorization (Phase 2 will make this more relevant)
             if ($e instanceof \Illuminate\Auth\AuthenticationException) {
-                return \App\Support\ApiResponse::error('Unauthenticated', 401, 'UNAUTHENTICATED');
+                return \App\Support\ApiResponse::error('Unauthenticated', 401, 'UNAUTHENTICATED', [], [
+                    'request_id' => $requestId !== '' ? $requestId : null,
+                ]);
             }
     
             if ($e instanceof \Illuminate\Auth\Access\AuthorizationException) {
-                return \App\Support\ApiResponse::error('Forbidden', 403, 'FORBIDDEN');
+                return \App\Support\ApiResponse::error('Forbidden', 403, 'FORBIDDEN', [], [
+                    'request_id' => $requestId !== '' ? $requestId : null,
+                ]);
             }
     
             // Not found
             if ($e instanceof \Symfony\Component\HttpKernel\Exception\NotFoundHttpException) {
-                return \App\Support\ApiResponse::error('Not Found', 404, 'NOT_FOUND');
+                return \App\Support\ApiResponse::error('Not Found', 404, 'NOT_FOUND', [], [
+                    'request_id' => $requestId !== '' ? $requestId : null,
+                ]);
             }
 
             // Model not found (e.g. firstOrFail when collection/entry missing)
             if ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
-                return \App\Support\ApiResponse::error('Not found', 404, 'NOT_FOUND');
+                return \App\Support\ApiResponse::error('Not found', 404, 'NOT_FOUND', [], [
+                    'request_id' => $requestId !== '' ? $requestId : null,
+                ]);
             }
 
             // HttpException (e.g. abort(422)) — return correct status instead of 500
@@ -85,7 +100,7 @@ return Application::configure(basePath: dirname(__DIR__))
                     $status,
                     'HTTP_ERROR',
                     [],
-                    ['request_id' => $request->header('X-Request-Id')]
+                    ['request_id' => $requestId !== '' ? $requestId : null]
                 );
             }
     
@@ -96,7 +111,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'trace'     => $e->getTraceAsString(),
             ]);
 
-            $meta = ['request_id' => $request->header('X-Request-Id')];
+            $meta = ['request_id' => $requestId !== '' ? $requestId : null];
             if (config('app.debug')) {
                 $meta['debug'] = [
                     'exception' => get_class($e),

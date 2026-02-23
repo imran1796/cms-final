@@ -137,4 +137,59 @@ final class PublicContentTest extends TestCase
         $this->assertArrayHasKey('title', $items[0]);
         $this->assertArrayNotHasKey('data', $items[0]);
     }
+
+    public function test_public_list_populate_relation_returns_related_published_entry(): void
+    {
+        $this->seed(\Database\Seeders\System\RolesAndPermissionsSeeder::class);
+        $space = \App\Models\Space::create([
+            'handle' => 'main',
+            'name' => 'Main',
+            'settings' => [],
+            'storage_prefix' => 'spaces/main',
+        ]);
+
+        $admin = User::factory()->create();
+        $admin->assignRole('Super Admin');
+        Sanctum::actingAs($admin);
+
+        $headers = ['X-Space-Id' => (string)$space->id];
+
+        $this->postJson('/api/v1/admin/collections', [
+            'handle' => 'authors',
+            'type' => 'collection',
+            'fields' => [
+                ['name' => 'name', 'type' => 'text', 'required' => true],
+            ],
+        ], $headers)->assertCreated();
+
+        $this->postJson('/api/v1/admin/collections', [
+            'handle' => 'posts',
+            'type' => 'collection',
+            'fields' => [
+                ['name' => 'title', 'type' => 'text', 'required' => true],
+                ['name' => 'author', 'type' => 'relation', 'required' => false, 'relation' => ['collection' => 'authors', 'max' => 1]],
+            ],
+        ], $headers)->assertCreated();
+
+        $author = $this->postJson('/api/v1/admin/authors', [
+            'status' => 'published',
+            'data' => ['name' => 'John Writer'],
+        ], $headers)->assertCreated();
+
+        $authorId = (int) $author->json('data.id');
+
+        $this->postJson('/api/v1/admin/posts', [
+            'status' => 'published',
+            'data' => ['title' => 'Populated Post', 'author' => $authorId],
+        ], $headers)->assertCreated();
+
+        $res = $this->getJson('/api/content/posts?limit=10&populate=author', $headers);
+        $res->assertOk();
+
+        $items = $res->json('data.items');
+        $this->assertCount(1, $items);
+        $this->assertSame('Populated Post', $items[0]['data']['title']);
+        $this->assertSame($authorId, $items[0]['data']['author']['id'] ?? null);
+        $this->assertSame('John Writer', $items[0]['data']['author']['data']['name'] ?? null);
+    }
 }

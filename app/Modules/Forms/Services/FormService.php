@@ -20,13 +20,25 @@ final class FormService implements FormServiceInterface
     ) {
     }
 
-    public function list(): array
+    public function list(array $params = []): array
     {
         $spaceId = $this->requireSpaceId();
         $this->authz->requirePermission('manage_forms');
 
-        $rows = $this->forms->list($spaceId);
-        return array_map(fn($f) => $f->toArray(), $rows);
+        $limit = isset($params['limit']) && is_numeric($params['limit']) ? (int) $params['limit'] : 25;
+        $limit = max(1, min(100, $limit));
+        $skip = isset($params['skip']) && is_numeric($params['skip']) ? (int) $params['skip'] : 0;
+        $skip = max(0, $skip);
+
+        $result = $this->forms->listPaginated($spaceId, $limit, $skip);
+        $items = array_map(fn($f) => $f->toArray(), $result['items']);
+
+        return [
+            'items' => $items,
+            'total' => (int) $result['total'],
+            'limit' => $limit,
+            'skip' => $skip,
+        ];
     }
 
     public function get(int $id): array

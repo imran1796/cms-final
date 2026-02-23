@@ -11,7 +11,9 @@ final class RequestContextMiddleware
 {
     public function handle(Request $request, Closure $next)
     {
-        $requestId = (string) Str::uuid();
+        $incoming = (string) $request->header('X-Request-Id', '');
+        $requestId = $incoming !== '' ? $incoming : (string) Str::uuid();
+        $request->attributes->set('request_id', $requestId);
 
         $spaceId = $request->header('X-Space-Id');
         $userId = optional($request->user())->id;

@@ -54,8 +54,13 @@ final class SpaceService implements SpaceServiceInterface
         } catch (\Throwable $e) {
             DB::rollBack();
 
+            $redactedInput = [
+                'handle' => $input['handle'] ?? null,
+                'name' => $input['name'] ?? null,
+                'is_active' => $input['is_active'] ?? null,
+            ];
             Log::error('Space create failed', [
-                'input' => $input,
+                'input' => $redactedInput,
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
             ]);

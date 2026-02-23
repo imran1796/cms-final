@@ -13,10 +13,19 @@ final class FormAdminController extends Controller
 {
     public function __construct(private readonly FormServiceInterface $service) {}
 
-    public function index()
+    public function index(Request $request)
     {
         try {
-            return ApiResponse::success($this->service->list(), 'Forms list');
+            $result = $this->service->list([
+                'limit' => $request->query('limit'),
+                'skip' => $request->query('skip'),
+            ]);
+
+            return ApiResponse::success($result['items'], 'Forms list', 200, [
+                'total' => $result['total'],
+                'limit' => $result['limit'],
+                'skip' => $result['skip'],
+            ]);
         } catch (\Throwable $e) {
             Log::error('Forms index failed', ['message' => $e->getMessage()]);
             throw $e;

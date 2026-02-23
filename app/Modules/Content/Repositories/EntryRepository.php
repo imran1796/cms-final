@@ -82,6 +82,18 @@ final class EntryRepository implements EntryRepositoryInterface
             ->firstOrFail();
     }
 
+    public function findPublishedById(int $spaceId, int $collectionId, int $id): ?Entry
+    {
+        return Entry::query()
+            ->where('space_id', $spaceId)
+            ->where('collection_id', $collectionId)
+            ->where('id', $id)
+            ->where('status', 'published')
+            ->whereNotNull('published_at')
+            ->where('published_at', '<=', Carbon::now())
+            ->first();
+    }
+
     public function create(array $data): Entry
     {
         return Entry::create($data);

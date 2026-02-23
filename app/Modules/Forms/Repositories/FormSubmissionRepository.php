@@ -17,6 +17,19 @@ final class FormSubmissionRepository implements FormSubmissionRepositoryInterfac
             ->all();
     }
 
+    public function listForFormPaginated(int $spaceId, int $formId, int $limit, int $skip): array
+    {
+        $query = FormSubmission::query()
+            ->where('space_id', $spaceId)
+            ->where('form_id', $formId)
+            ->orderByDesc('id');
+
+        $total = (clone $query)->count();
+        $items = $query->skip($skip)->take($limit)->get()->all();
+
+        return ['items' => $items, 'total' => $total];
+    }
+
     public function find(int $spaceId, int $formId, int $submissionId): ?FormSubmission
     {
         return FormSubmission::query()

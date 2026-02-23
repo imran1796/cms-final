@@ -26,18 +26,18 @@ final class CmsExportCommand extends Command
                 'version' => 1,
                 'exported_at' => now()->toIso8601String(),
                 'spaces' => $spaces,
-                'collections' => DB::table('collections')->whereIn('space_id', $spaceIds)->get()->all(),
-                'entries' => DB::table('entries')->whereIn('space_id', $spaceIds)->get()->all(),
+                'collections' => $this->fetchBySpaceInChunks('collections', $spaceIds),
+                'entries' => $this->fetchBySpaceInChunks('entries', $spaceIds),
             ];
 
             if ($this->tableExists('forms')) {
-                $payload['forms'] = DB::table('forms')->whereIn('space_id', $spaceIds)->get()->all();
+                $payload['forms'] = $this->fetchBySpaceInChunks('forms', $spaceIds);
             }
             if ($this->tableExists('form_submissions')) {
-                $payload['form_submissions'] = DB::table('form_submissions')->whereIn('space_id', $spaceIds)->get()->all();
+                $payload['form_submissions'] = $this->fetchBySpaceInChunks('form_submissions', $spaceIds);
             }
             if ($this->tableExists('media')) {
-                $payload['media'] = DB::table('media')->whereIn('space_id', $spaceIds)->get()->all();
+                $payload['media'] = $this->fetchBySpaceInChunks('media', $spaceIds);
             }
             if ($this->tableExists('media_variants')) {
                 $payload['media_variants'] = DB::table('media_variants')
@@ -80,5 +80,23 @@ final class CmsExportCommand extends Command
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private function fetchBySpaceInChunks(string $table, array $spaceIds): array
+    {
+        $chunkSize = (int) env('CMS_EXPORT_CHUNK_SIZE', 1000);
+        $chunkSize = max(100, min(5000, $chunkSize));
+
+        $rows = [];
+        DB::table($table)
+            ->whereIn('space_id', $spaceIds)
+            ->orderBy('id')
+            ->chunk($chunkSize, function ($chunk) use (&$rows): void {
+                foreach ($chunk as $row) {
+                    $rows[] = $row;
+                }
+            });
+
+        return $rows;
     }
 }

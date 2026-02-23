@@ -64,8 +64,11 @@ final class FormsTest extends TestCase
 
         Sanctum::actingAs($admin);
 
-        $list = $this->getJson("/api/v1/admin/forms/{$formId}/submissions", $headers);
+        $list = $this->getJson("/api/v1/admin/forms/{$formId}/submissions?limit=10&skip=0", $headers);
         $list->assertOk()->assertJsonPath('success', true);
+        $list->assertJsonPath('meta.limit', 10);
+        $list->assertJsonPath('meta.skip', 0);
+        $list->assertJsonPath('meta.total', 1);
 
         $subs = $list->json('data');
         $this->assertIsArray($subs);

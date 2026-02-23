@@ -15,6 +15,8 @@ interface EntryRepositoryInterface
 
     public function findOrFail(int $spaceId, int $collectionId, int $id): Entry;
 
+    public function findPublishedById(int $spaceId, int $collectionId, int $id): ?Entry;
+
     public function create(array $data): Entry;
 
     public function update(Entry $entry, array $data): Entry;

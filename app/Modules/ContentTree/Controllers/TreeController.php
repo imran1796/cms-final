@@ -26,9 +26,20 @@ final class TreeController extends Controller
             abort(422, 'Missing space context (X-Space-Id)');
         }
 
-        $data = $this->service->getTree($spaceId, $collectionHandle);
+        $limit = is_numeric((string) $request->query('limit')) ? (int) $request->query('limit') : 1000;
+        $limit = max(1, min(5000, $limit));
+        $skip = is_numeric((string) $request->query('skip')) ? (int) $request->query('skip') : 0;
+        $skip = max(0, $skip);
 
-        return ApiResponse::success($data, 'Tree loaded');
+        $data = $this->service->getTree($spaceId, $collectionHandle, [
+            'limit' => $limit,
+            'skip' => $skip,
+        ]);
+
+        return ApiResponse::success($data, 'Tree loaded', 200, [
+            'limit' => $limit,
+            'skip' => $skip,
+        ]);
     }
 
     public function move(Request $request, string $collectionHandle, int $id)

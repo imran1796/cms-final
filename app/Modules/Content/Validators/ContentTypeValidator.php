@@ -14,40 +14,40 @@ final class ContentTypeValidator
         $settings = $payload['settings'] ?? [];
 
         if ($handle === '') {
-            throw new ValidationApiException(['handle' => ['handle is required']]);
+            throw new ValidationApiException('Validation failed', ['handle' => ['handle is required']]);
         }
 
         if (!in_array($type, ['collection', 'singleton', 'tree'], true)) {
-            throw new ValidationApiException(['type' => ['type must be collection|singleton|tree']]);
+            throw new ValidationApiException('Validation failed', ['type' => ['type must be collection|singleton|tree']]);
         }
 
         if (is_string($fields)) {
             $decoded = json_decode($fields, true);
             if (!is_array($decoded)) {
-                throw new ValidationApiException(['fields' => ['fields must be a valid JSON array']]);
+                throw new ValidationApiException('Validation failed', ['fields' => ['fields must be a valid JSON array']]);
             }
             $fields = $decoded;
         }
 
         if (!is_array($fields)) {
-            throw new ValidationApiException(['fields' => ['fields must be an array']]);
+            throw new ValidationApiException('Validation failed', ['fields' => ['fields must be an array']]);
         }
 
         if (is_string($settings)) {
             $decoded = json_decode($settings, true);
             if (!is_array($decoded)) {
-                throw new ValidationApiException(['settings' => ['settings must be a valid JSON object']]);
+                throw new ValidationApiException('Validation failed', ['settings' => ['settings must be a valid JSON object']]);
             }
             $settings = $decoded;
         }
         if (!is_array($settings)) {
-            throw new ValidationApiException(['settings' => ['settings must be an object/array']]);
+            throw new ValidationApiException('Validation failed', ['settings' => ['settings must be an object/array']]);
         }
 
         $ids = [];
         foreach ($fields as $i => $field) {
             if (!is_array($field)) {
-                throw new ValidationApiException(['fields' => ["fields[$i] must be an object"]]);
+                throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i] must be an object"]]);
             }
 
             $id   = (string) ($field['id'] ?? $field['name'] ?? '');
@@ -55,15 +55,15 @@ final class ContentTypeValidator
             $ft   = (string) ($field['type'] ?? '');
 
             if ($id === '' || $name === '') {
-                throw new ValidationApiException(['fields' => ["fields[$i] must have id or name"]]);
+                throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i] must have id or name"]]);
             }
 
             if ($ft === '') {
-                throw new ValidationApiException(['fields' => ["fields[$i].type is required"]]);
+                throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i].type is required"]]);
             }
 
             if (isset($ids[$id])) {
-                throw new ValidationApiException(['fields' => ["duplicate field id: $id"]]);
+                throw new ValidationApiException('Validation failed', ['fields' => ["duplicate field id: $id"]]);
             }
             $ids[$id] = true;
         }
@@ -82,26 +82,26 @@ final class ContentTypeValidator
         $settings = $payload['settings'] ?? null;
 
         if ($type !== '' && !in_array($type, ['collection', 'singleton', 'tree'], true)) {
-            throw new ValidationApiException(['type' => ['type must be collection|singleton|tree']]);
+            throw new ValidationApiException('Validation failed', ['type' => ['type must be collection|singleton|tree']]);
         }
 
         if ($fields !== null) {
             if (is_string($fields)) {
                 $decoded = json_decode($fields, true);
                 if (!is_array($decoded)) {
-                    throw new ValidationApiException(['fields' => ['fields must be a valid JSON array']]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ['fields must be a valid JSON array']]);
                 }
                 $fields = $decoded;
             }
 
             if (!is_array($fields)) {
-                throw new ValidationApiException(['fields' => ['fields must be an array']]);
+                throw new ValidationApiException('Validation failed', ['fields' => ['fields must be an array']]);
             }
 
             $ids = [];
             foreach ($fields as $i => $field) {
                 if (!is_array($field)) {
-                    throw new ValidationApiException(['fields' => ["fields[$i] must be an object"]]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i] must be an object"]]);
                 }
 
                 $id = (string) ($field['id'] ?? $field['name'] ?? '');
@@ -109,15 +109,15 @@ final class ContentTypeValidator
                 $ft = (string) ($field['type'] ?? '');
 
                 if ($id === '' || $name === '') {
-                    throw new ValidationApiException(['fields' => ["fields[$i] must have id or name"]]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i] must have id or name"]]);
                 }
 
                 if ($ft === '') {
-                    throw new ValidationApiException(['fields' => ["fields[$i].type is required"]]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ["fields[$i].type is required"]]);
                 }
 
                 if (isset($ids[$id])) {
-                    throw new ValidationApiException(['fields' => ["duplicate field id: $id"]]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ["duplicate field id: $id"]]);
                 }
                 $ids[$id] = true;
             }
@@ -129,12 +129,12 @@ final class ContentTypeValidator
             if (is_string($settings)) {
                 $decoded = json_decode($settings, true);
                 if (!is_array($decoded)) {
-                    throw new ValidationApiException(['settings' => ['settings must be a valid JSON object']]);
+                    throw new ValidationApiException('Validation failed', ['settings' => ['settings must be a valid JSON object']]);
                 }
                 $settings = $decoded;
             }
             if (!is_array($settings)) {
-                throw new ValidationApiException(['settings' => ['settings must be an object/array']]);
+                throw new ValidationApiException('Validation failed', ['settings' => ['settings must be an object/array']]);
             }
             $payload['settings'] = $settings;
         }
@@ -150,7 +150,7 @@ final class ContentTypeValidator
         $required = (bool) ($fieldInput['required'] ?? false);
 
         if ($handle === '') {
-            throw new ValidationApiException(['handle' => ['Field handle (or id/name) is required']]);
+            throw new ValidationApiException('Validation failed', ['handle' => ['Field handle (or id/name) is required']]);
         }
 
         if ($label === '') {
@@ -158,12 +158,12 @@ final class ContentTypeValidator
         }
 
         if ($type === '') {
-            throw new ValidationApiException(['type' => ['Field type is required']]);
+            throw new ValidationApiException('Validation failed', ['type' => ['Field type is required']]);
         }
 
         $validTypes = ['text', 'textarea', 'richtext', 'number', 'boolean', 'date', 'datetime', 'time', 'json', 'select', 'radio', 'tags', 'enum', 'repeater', 'layout', 'relation', 'asset', 'assets', 'slug', 'password', 'color'];
         if (!in_array($type, $validTypes, true)) {
-            throw new ValidationApiException(['type' => ['Field type must be one of: ' . implode(', ', $validTypes)]]);
+            throw new ValidationApiException('Validation failed', ['type' => ['Field type must be one of: ' . implode(', ', $validTypes)]]);
         }
 
         $localizedAllowedTypes = ['text', 'textarea', 'richtext', 'slug', 'number', 'boolean', 'date', 'datetime', 'time', 'json', 'select', 'radio', 'enum', 'color'];
@@ -199,7 +199,7 @@ final class ContentTypeValidator
             $rel = $fieldInput['relation'] ?? [];
             $refHandle = (string) ($rel['collection'] ?? '');
             if ($refHandle === '') {
-                throw new ValidationApiException(['relation' => ['relation.collection is required for relation fields']]);
+                throw new ValidationApiException('Validation failed', ['relation' => ['relation.collection is required for relation fields']]);
             }
             $max = isset($rel['max']) ? $rel['max'] : null;
             if ($max !== null && $max !== 1) {
@@ -227,7 +227,7 @@ final class ContentTypeValidator
             $out['fields'] = [];
             foreach ($nested as $i => $nestedInput) {
                 if (!is_array($nestedInput)) {
-                    throw new ValidationApiException(['fields' => ["repeater fields[$i] must be an object"]]);
+                    throw new ValidationApiException('Validation failed', ['fields' => ["repeater fields[$i] must be an object"]]);
                 }
                 $out['fields'][] = self::validateField($nestedInput);
             }
@@ -242,14 +242,14 @@ final class ContentTypeValidator
             $blockTypes = [];
             foreach ($blocksInput as $i => $blockInput) {
                 if (!is_array($blockInput)) {
-                    throw new ValidationApiException(['blocks' => ["layout blocks[$i] must be an object"]]);
+                    throw new ValidationApiException('Validation failed', ['blocks' => ["layout blocks[$i] must be an object"]]);
                 }
                 $blockType = (string) ($blockInput['type'] ?? '');
                 if ($blockType === '') {
-                    throw new ValidationApiException(['blocks' => ["layout blocks[$i].type is required"]]);
+                    throw new ValidationApiException('Validation failed', ['blocks' => ["layout blocks[$i].type is required"]]);
                 }
                 if (in_array($blockType, $blockTypes, true)) {
-                    throw new ValidationApiException(['blocks' => ["layout block type must be unique: $blockType"]]);
+                    throw new ValidationApiException('Validation failed', ['blocks' => ["layout block type must be unique: $blockType"]]);
                 }
                 $blockTypes[] = $blockType;
                 $blockLabel = (string) ($blockInput['label'] ?? $blockType);
@@ -260,7 +260,7 @@ final class ContentTypeValidator
                 $blockFields = [];
                 foreach ($nested as $j => $nestedInput) {
                     if (!is_array($nestedInput)) {
-                        throw new ValidationApiException(['blocks' => ["layout blocks[$i].fields[$j] must be an object"]]);
+                        throw new ValidationApiException('Validation failed', ['blocks' => ["layout blocks[$i].fields[$j] must be an object"]]);
                     }
                     $blockFields[] = self::validateField($nestedInput);
                 }
@@ -271,7 +271,7 @@ final class ContentTypeValidator
                 ];
             }
             if (count($out['blocks']) === 0) {
-                throw new ValidationApiException(['blocks' => ['layout must have at least one block type']]);
+                throw new ValidationApiException('Validation failed', ['blocks' => ['layout must have at least one block type']]);
             }
         }
 

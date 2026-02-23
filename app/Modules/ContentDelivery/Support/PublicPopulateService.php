@@ -20,9 +20,16 @@ final class PublicPopulateService
         $fieldDefs = (array) ($collection->fields ?? []);
         $relationMap = [];
         foreach ($fieldDefs as $def) {
-            if (($def['type'] ?? null) === 'relation' && !empty($def['name']) && !empty($def['target'])) {
-                $relationMap[$def['name']] = $def;
+            if (($def['type'] ?? null) !== 'relation') {
+                continue;
             }
+            $fieldHandle = (string) ($def['handle'] ?? $def['name'] ?? '');
+            $targetHandle = (string) ($def['target'] ?? $def['relation']['collection'] ?? '');
+            if ($fieldHandle === '' || $targetHandle === '') {
+                continue;
+            }
+            $def['target'] = $targetHandle;
+            $relationMap[$fieldHandle] = $def;
         }
 
         foreach ($items as &$item) {

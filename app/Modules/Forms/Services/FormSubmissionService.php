@@ -72,7 +72,7 @@ final class FormSubmissionService implements FormSubmissionServiceInterface
         });
     }
 
-    public function listForForm(int $formId): array
+    public function listForForm(int $formId, array $params = []): array
     {
         $spaceId = $this->requireSpaceId();
         $this->authz->requirePermission('manage_forms');
@@ -80,8 +80,20 @@ final class FormSubmissionService implements FormSubmissionServiceInterface
         $form = $this->forms->find($spaceId, $formId);
         if (!$form) throw new NotFoundApiException('Resource not found');
 
-        $rows = $this->subs->listForForm($spaceId, $formId);
-        return array_map(fn($s) => $s->toArray(), $rows);
+        $limit = isset($params['limit']) && is_numeric($params['limit']) ? (int) $params['limit'] : 25;
+        $limit = max(1, min(100, $limit));
+        $skip = isset($params['skip']) && is_numeric($params['skip']) ? (int) $params['skip'] : 0;
+        $skip = max(0, $skip);
+
+        $result = $this->subs->listForFormPaginated($spaceId, $formId, $limit, $skip);
+        $items = array_map(fn($s) => $s->toArray(), $result['items']);
+
+        return [
+            'items' => $items,
+            'total' => (int) $result['total'],
+            'limit' => $limit,
+            'skip' => $skip,
+        ];
     }
 
     public function get(int $formId, int $submissionId): array

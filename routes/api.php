@@ -23,6 +23,7 @@ use App\Modules\Forms\Controllers\FormAdminController;
 use App\Modules\Forms\Controllers\FormSubmissionAdminController;
 use App\Modules\Forms\Controllers\FormPublicController;
 use App\Modules\Assets\Controllers\AssetAdminController;
+use App\Modules\Assets\Controllers\AssetConfigController;
 use App\Modules\Assets\Controllers\AssetPublicController;
 use App\Modules\Finder\Controllers\FinderController;
 use App\Modules\Search\Controllers\SearchController;
@@ -129,6 +130,7 @@ Route::prefix('v1/spaces')
         Route::put('/forms/{id}/submissions/{submissionId}', [FormSubmissionAdminController::class, 'update']);
 
         Route::get('/assets', [AssetAdminController::class, 'index']);
+        Route::get('/assets/config', [AssetConfigController::class, 'show']);
         Route::post('/assets', [AssetAdminController::class, 'store']);
         Route::post('/assets/upload/chunk/init', [AssetAdminController::class, 'chunkInit']);
         Route::post('/assets/upload/chunk', [AssetAdminController::class, 'chunk']);
@@ -186,6 +188,7 @@ Route::prefix('v1/spaces')
             Route::put('/forms/{id}/submissions/{submissionId}', [FormSubmissionAdminController::class, 'update']);
 
             Route::get('/assets', [AssetAdminController::class, 'index']);
+            Route::get('/assets/config', [AssetConfigController::class, 'show']);
             Route::post('/assets', [AssetAdminController::class, 'store']);
             Route::post('/assets/upload/chunk/init', [AssetAdminController::class, 'chunkInit']);
             Route::post('/assets/upload/chunk', [AssetAdminController::class, 'chunk']);

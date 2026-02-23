@@ -34,13 +34,7 @@ final class ModuleServiceProvider extends ServiceProvider
             SavedViewsServiceProvider::class,
             ContentDeliveryServiceProvider::class,
             FormsServiceProvider::class,
-            AssetsServiceProvider::class,
-            SearchServiceProvider::class,
-            RealtimeServiceProvider::class,
             SystemConsoleServiceProvider::class,
-            
-
-
         ];
 
         foreach ($providers as $provider) {

@@ -8,15 +8,23 @@ use Illuminate\Support\Collection;
 
 final class ContentTreeRepository implements ContentTreeRepositoryInterface
 {
-    public function listNodes(int $spaceId, int $collectionId): Collection
+    public function listNodes(int $spaceId, int $collectionId, ?int $limit = null, int $skip = 0): Collection
     {
-        return ContentTreeNode::query()
+        $query = ContentTreeNode::query()
             ->where('space_id', $spaceId)
             ->where('collection_id', $collectionId)
             ->orderByRaw('parent_id is null desc') // root first (optional)
             ->orderBy('parent_id')
-            ->orderBy('position')
-            ->get();
+            ->orderBy('position');
+
+        if ($skip > 0) {
+            $query->skip($skip);
+        }
+        if ($limit !== null && $limit > 0) {
+            $query->take($limit);
+        }
+
+        return $query->get();
     }
 
     public function findNodeByEntry(int $spaceId, int $collectionId, int $entryId)

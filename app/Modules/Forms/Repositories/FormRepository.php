@@ -12,6 +12,15 @@ final class FormRepository implements FormRepositoryInterface
         return Form::query()->where('space_id', $spaceId)->orderByDesc('id')->get()->all();
     }
 
+    public function listPaginated(int $spaceId, int $limit, int $skip): array
+    {
+        $query = Form::query()->where('space_id', $spaceId)->orderByDesc('id');
+        $total = (clone $query)->count();
+        $items = $query->skip($skip)->take($limit)->get()->all();
+
+        return ['items' => $items, 'total' => $total];
+    }
+
     public function find(int $spaceId, int $id): ?Form
     {
         return Form::query()->where('space_id', $spaceId)->where('id', $id)->first();

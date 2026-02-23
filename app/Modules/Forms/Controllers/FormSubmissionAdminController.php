@@ -17,7 +17,16 @@ final class FormSubmissionAdminController extends Controller
     {
         $formId = $this->toPositiveInt($id, 'id');
         try {
-            return ApiResponse::success($this->service->listForForm($formId), 'Submissions list');
+            $result = $this->service->listForForm($formId, [
+                'limit' => request()->query('limit'),
+                'skip' => request()->query('skip'),
+            ]);
+
+            return ApiResponse::success($result['items'], 'Submissions list', 200, [
+                'total' => $result['total'],
+                'limit' => $result['limit'],
+                'skip' => $result['skip'],
+            ]);
         } catch (\Throwable $e) {
             Log::error('Submissions index failed', ['form_id' => $formId, 'message' => $e->getMessage()]);
             throw $e;

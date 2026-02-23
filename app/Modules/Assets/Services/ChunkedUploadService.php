@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 
 use App\Support\Exceptions\ValidationApiException;
 use App\Modules\Assets\Services\Interfaces\AssetServiceInterface;
+use App\Modules\Assets\Validators\AssetValidator;
 use App\Modules\System\Realtime\Events\AssetProgressRealtimeEvent;
 
 final class ChunkedUploadService
@@ -58,6 +59,16 @@ final class ChunkedUploadService
         $uploadId = $request->input('upload_id');
         $chunkIndex = (int) $request->input('chunk_index');
         $file = $request->file('file');
+        $maxChunkSizeMb = (int) config('cms_assets.chunks.max_chunk_size_mb', 8);
+        if ($maxChunkSizeMb > 0) {
+            $maxChunkBytes = $maxChunkSizeMb * 1024 * 1024;
+            $chunkSize = (int) ($file?->getSize() ?: 0);
+            if ($chunkSize > $maxChunkBytes) {
+                throw new ValidationApiException('Validation failed', [
+                    'file' => ["chunk is too large (max {$maxChunkSizeMb} MB)"],
+                ]);
+            }
+        }
 
         $meta = Cache::get(self::META_KEY . $uploadId);
         if (!$meta) {
@@ -71,7 +82,18 @@ final class ChunkedUploadService
 
         $chunkDir = $this->chunkDir($uploadId);
         $chunkPath = $chunkDir . '/chunk_' . $chunkIndex;
-        Storage::disk('local')->put($chunkPath, file_get_contents($file->getRealPath()));
+        $stream = fopen($file->getRealPath(), 'rb');
+        if ($stream === false) {
+            throw new \RuntimeException('Unable to open chunk stream');
+        }
+        try {
+            $ok = Storage::disk('local')->writeStream($chunkPath, $stream);
+            if ($ok !== true) {
+                throw new \RuntimeException('Unable to store chunk');
+            }
+        } finally {
+            fclose($stream);
+        }
 
         $meta['received'][$chunkIndex] = true;
         Cache::put(self::META_KEY . $uploadId, $meta, now()->addMinutes(self::TTL_MINUTES));
@@ -108,9 +130,12 @@ final class ChunkedUploadService
             }
         }
 
-        $mergedPath = storage_path('app/' . $chunkDir . '/merged');
         $fs = Storage::disk('local');
-        $fullChunkDir = storage_path('app/' . $chunkDir);
+        $mergedPath = $fs->path($chunkDir . '/merged');
+        $fullChunkDir = $fs->path($chunkDir);
+        if (!is_dir($fullChunkDir)) {
+            mkdir($fullChunkDir, 0755, true);
+        }
 
         $merged = fopen($mergedPath, 'wb');
         if (!$merged) {
@@ -120,14 +145,22 @@ final class ChunkedUploadService
         try {
             for ($i = 0; $i < $totalChunks; $i++) {
                 $chunkPath = $fullChunkDir . '/chunk_' . $i;
-                $data = file_get_contents($chunkPath);
-                fwrite($merged, $data);
+                $chunk = fopen($chunkPath, 'rb');
+                if ($chunk === false) {
+                    throw new \RuntimeException("Missing chunk stream {$i}");
+                }
+                try {
+                    stream_copy_to_stream($chunk, $merged);
+                } finally {
+                    fclose($chunk);
+                }
             }
         } finally {
             fclose($merged);
         }
 
         try {
+            AssetValidator::validateMergedFile($mergedPath, (string) $meta['filename']);
             $media = $this->assets->createMediaFromPath(
                 $mergedPath,
                 $meta['filename'],
@@ -157,7 +190,7 @@ final class ChunkedUploadService
 
     private function cleanupChunks(string $chunkDir): void
     {
-        $fullDir = storage_path('app/' . $chunkDir);
+        $fullDir = Storage::disk('local')->path($chunkDir);
         if (!is_dir($fullDir)) {
             return;
         }

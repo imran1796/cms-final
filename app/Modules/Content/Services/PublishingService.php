@@ -104,7 +104,7 @@ final class PublishingService implements PublishingServiceInterface
     {
         $now = Carbon::now();
 
-        $eligible = Entry::query()
+        $eligibleIds = Entry::query()
             ->where(function ($q) use ($now) {
                 $q->where(function ($scheduled) use ($now) {
                     $scheduled->where('status', 'scheduled')
@@ -120,24 +120,44 @@ final class PublishingService implements PublishingServiceInterface
                 // });
             })
             ->orderBy('published_at')
+            ->orderBy('id')
             ->limit(500)
-            ->get();
+            ->pluck('id')
+            ->all();
 
         $count = 0;
 
-        foreach ($eligible as $entry) {
+        foreach ($eligibleIds as $entryId) {
+            $entry = Entry::query()->find($entryId);
+            if (!$entry) {
+                continue;
+            }
+
+            $updated = Entry::query()
+                ->where('id', $entryId)
+                ->where('status', 'scheduled')
+                ->whereNotNull('published_at')
+                ->where('published_at', '<=', $now)
+                ->update([
+                    'status' => 'published',
+                    'updated_at' => $now,
+                ]);
+
+            if ($updated === 0) {
+                continue;
+            }
+
+            $entry = Entry::query()->find($entryId);
+            if (!$entry) {
+                continue;
+            }
+
             $collection = \App\Models\Collection::query()->find($entry->collection_id);
             if (!$collection) {
                 continue;
             }
 
-            DB::beginTransaction();
             try {
-                $entry->status = 'published';
-                $entry->save();
-
-                DB::commit();
-
                 event(new EntryPublished($entry, $collection->handle, (int)$entry->space_id));
                 Log::info('Scheduled publish executed', [
                     'space_id' => $entry->space_id,
@@ -147,7 +167,6 @@ final class PublishingService implements PublishingServiceInterface
 
                 $count++;
             } catch (\Throwable $e) {
-                DB::rollBack();
                 Log::error('Scheduled publish failed', [
                     'entry_id' => $entry->id,
                     'message' => $e->getMessage(),
@@ -162,36 +181,44 @@ final class PublishingService implements PublishingServiceInterface
     {
         $now = Carbon::now();
 
-        $eligible = Entry::query()
+        $eligibleIds = Entry::query()
             ->where('status', 'published')
             ->whereNotNull('unpublish_at')
             ->where('unpublish_at', '<=', $now)
             ->orderBy('unpublish_at')
+            ->orderBy('id')
             ->limit(500)
-            ->get();
+            ->pluck('id')
+            ->all();
 
         $count = 0;
 
-        foreach ($eligible as $entry) {
-            DB::beginTransaction();
+        foreach ($eligibleIds as $entryId) {
+            $updated = Entry::query()
+                ->where('id', $entryId)
+                ->where('status', 'published')
+                ->whereNotNull('unpublish_at')
+                ->where('unpublish_at', '<=', $now)
+                ->update([
+                    'status' => 'draft',
+                    'published_at' => null,
+                    'unpublish_at' => null,
+                    'updated_at' => $now,
+                ]);
+
+            if ($updated === 0) {
+                continue;
+            }
+
             try {
-                $entry->status = 'draft';
-                $entry->published_at = null;
-                $entry->unpublish_at = null;
-                $entry->save();
-
-                DB::commit();
-
                 Log::info('Scheduled unpublish executed', [
-                    'space_id' => $entry->space_id,
-                    'entry_id' => $entry->id,
+                    'entry_id' => $entryId,
                 ]);
 
                 $count++;
             } catch (\Throwable $e) {
-                DB::rollBack();
                 Log::error('Scheduled unpublish failed', [
-                    'entry_id' => $entry->id,
+                    'entry_id' => $entryId,
                     'message' => $e->getMessage(),
                 ]);
             }

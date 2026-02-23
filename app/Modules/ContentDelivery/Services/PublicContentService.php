@@ -15,6 +15,10 @@ use App\Modules\Content\Repositories\Interfaces\CollectionRepositoryInterface;
 
 final class PublicContentService implements PublicContentServiceInterface
 {
+    private const NS_SPACE = 'cache_ns:space:';
+    private const NS_COLLECTION = 'cache_ns:collection:';
+    private const NS_ENTRY = 'cache_ns:entry:';
+
     public function __construct(
         private readonly PublicContentRepositoryInterface $repo,
         private readonly CollectionRepositoryInterface $collections,
@@ -116,8 +120,22 @@ final class PublicContentService implements PublicContentServiceInterface
 
     private function cacheKey(int $spaceId, string $handle, string $op, array $parsed): string
     {
+        $spaceNs = $this->namespaceVersion(self::NS_SPACE . $spaceId);
+        $collectionNs = $this->namespaceVersion(self::NS_COLLECTION . $spaceId . ':' . $handle);
+        $entryNs = null;
+        if (str_starts_with($op, 'get:')) {
+            $entryId = (int) substr($op, 4);
+            if ($entryId > 0) {
+                $entryNs = $this->namespaceVersion(self::NS_ENTRY . $spaceId . ':' . $handle . ':' . $entryId);
+            }
+        }
+
         $hash = sha1(json_encode($parsed));
-        return "public:space:$spaceId:$handle:$op:$hash";
+        $nsPart = "ns:s{$spaceNs}:c{$collectionNs}";
+        if ($entryNs !== null) {
+            $nsPart .= ":e{$entryNs}";
+        }
+        return "public:space:$spaceId:$handle:$op:$nsPart:$hash";
     }
 
     private function buildListResult(int $spaceId, $collection, array $parsed, string $collectionHandle): array
@@ -189,5 +207,12 @@ final class PublicContentService implements PublicContentServiceInterface
         }
 
         return $tags;
+    }
+
+    private function namespaceVersion(string $key): int
+    {
+        $value = Cache::get($key, 1);
+        $version = is_numeric($value) ? (int) $value : 1;
+        return $version > 0 ? $version : 1;
     }
 }

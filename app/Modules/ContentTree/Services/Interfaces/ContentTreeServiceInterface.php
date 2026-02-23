@@ -4,7 +4,7 @@ namespace App\Modules\ContentTree\Services\Interfaces;
 
 interface ContentTreeServiceInterface
 {
-    public function getTree(int $spaceId, string $collectionHandle): array;
+    public function getTree(int $spaceId, string $collectionHandle, array $params = []): array;
 
     public function ensureNodeForEntry(int $spaceId, int $collectionId, int $entryId): void;
 
